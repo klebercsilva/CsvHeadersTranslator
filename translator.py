@@ -23,14 +23,16 @@ class Translator:
                         'utc_date':'data_coleta_dados',
                         'num_courses_visited': 'num_cursos_visitados'}
 
-        # List that will temporarily store the headers of the original file
-        csv_data = list()
+        # Temporarily stores the headers and body of the original file
+        csv_headers = list()
+        csv_body = list()
 
         """ Open the file as read-only, retrieve the current headers,
             translate and store them in a different dictionary """
-        with open(self.orig_csv_file, 'r') as f:
-            reader = csv.reader(f)
-            del csv_data[:]
+        with open(self.orig_csv_file, 'r') as fr:
+            reader = csv.reader(fr)
+            del csv_headers[:]
+            del csv_body[:]
             # Represents the first line of the file, in other words, the header
             header = 1
             try:
@@ -38,26 +40,42 @@ class Translator:
                     if reader.line_num == header:
                         for column in row:
                             if column.strip() in translations.keys():
-                                csv_data.append(translations.get(column.strip()))
+                                csv_headers.append(translations.get(column.strip()))
+                            else:
+                                csv_headers.append(column.strip())
                     else:
-                        csv_data.append(column.strip())
+                        csv_body.append(row)
             except csv.Error as e:
                 sys.exit('Error while reading file: %s, line: %d: %s' % (filename, reader.line_num, e))
             finally:
-                f.close()
+                fr.close()
 
         """ Generate a new CSV file containing the translation of the matched words
         but not excluding the words that have not been found """
         with open(self.new_csv_file, 'w') as fw:
             delimiter = ", "
-            col_count = 1
+            counter = 1
             try:
-                for data in csv_data:
-                    if col_count < len(csv_data):
-                        fw.write(data + delimiter)
+                for header in csv_headers:
+                    if counter < len(csv_headers):
+                        fw.write(header + delimiter)
                     else:
-                        fw.write(data)
-                    col_count += 1
+                        fw.write(header)
+                        fw.write('\n')
+                    counter += 1
+
+                """ Since csv_body is a list of text rows
+                    we need to iterate through each row and retrieve each element of the current row
+                    e.g: ['0', '2015-01-11', '3.0', '53.00587123', '0.0', '0.0'] """
+                for body in csv_body:
+                    counter = 1
+                    for data in body:
+                        if counter < len(body):
+                            fw.write(data + delimiter)
+                        else:
+                            fw.write(data)
+                        counter += 1
+                    fw.write('\n')
             except IOError as ioe:
                 sys.exit('Error while reading file: %s, %s' % (filename, ioe))
             finally:
